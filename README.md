@@ -78,18 +78,27 @@ Use `render.yaml` or Render UI:
 
 ## GitHub Pages Deploy (Frontend)
 
-```powershell
-cd frontend
-npm install
-npm run deploy
-```
+Deployment is automatic via GitHub Actions workflow: `.github/workflows/pages.yml`.
 
-Set these before deploy:
+Set these once:
 
 - `frontend/.env.production`:
   - `VITE_API_BASE_URL=https://startdate-finder-api.onrender.com`
 - `frontend/package.json`:
-  - `homepage=https://YOUR_USERNAME.github.io/startdate-finder`
+  - `homepage=https://poppavelli87.github.io/startdate-finder`
+
+GitHub settings:
+
+1. Open the repo on GitHub.
+2. Go to `Settings` -> `Pages`.
+3. Under `Build and deployment`, set `Source` to `GitHub Actions`.
+4. Push to `main` and wait for workflow `Deploy Frontend to GitHub Pages` to finish.
+5. Open `https://poppavelli87.github.io/startdate-finder/`.
+
+If the `deploy` job fails almost immediately (for example in ~1 second), re-check:
+
+- `Settings` -> `Pages` -> `Source` is set to `GitHub Actions`.
+- `Settings` -> `Actions` -> `General` -> `Workflow permissions` allows read and write.
 
 ## CORS Notes
 

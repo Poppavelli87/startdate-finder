@@ -33,30 +33,22 @@ After deploy, copy the service URL:
 
 ## 2) Frontend on GitHub Pages
 
-1. Edit `frontend/package.json`:
-   - Set `"homepage": "https://YOUR_USERNAME.github.io/startdate-finder"`
-2. Confirm `frontend/.env.production` has:
+1. Confirm `frontend/.env.production` has:
    - `VITE_API_BASE_URL=https://startdate-finder-api.onrender.com`
-3. Deploy:
-
-```bash
-cd frontend
-npm install
-npm run deploy
-```
-
-4. In GitHub repo -> **Settings** -> **Pages**:
-   - Source: `gh-pages` branch
-   - Folder: `/ (root)`
+2. Confirm `.github/workflows/pages.yml` exists in the repo.
+3. In GitHub repo -> **Settings** -> **Pages**:
+   - Build and deployment -> Source: **GitHub Actions**
+4. Push changes to `main`.
+5. Wait for workflow **Deploy Frontend to GitHub Pages** to complete.
 
 Final frontend URL:
 
-`https://YOUR_USERNAME.github.io/startdate-finder`
+`https://poppavelli87.github.io/startdate-finder/`
 
 ## 3) Tighten CORS after first successful deploy
 
 Once frontend domain is stable, update Render env var:
 
-`CORS_ALLOW_ORIGINS=https://YOUR_USERNAME.github.io`
+`CORS_ALLOW_ORIGINS=https://poppavelli87.github.io`
 
 Redeploy backend service.
