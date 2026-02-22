@@ -26,8 +26,9 @@ export async function fetchConfig(): Promise<AppConfigResponse> {
 
 export async function createJob(file: File, settings: JobSettings): Promise<string> {
   const form = new FormData();
+  const serializedSettings = JSON.stringify(settings);
   form.append("file", file);
-  form.append("settings_json", JSON.stringify(settings));
+  form.append("settings_json", serializedSettings);
   const response = await fetch(apiUrl("/api/jobs"), {
     method: "POST",
     body: form
