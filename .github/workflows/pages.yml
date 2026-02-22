@@ -1,3 +1,5 @@
+# If GitHub Pages is not needed, disable this workflow safely by renaming
+# this file to `pages.yml.disabled`.
 name: Deploy Frontend to GitHub Pages
 
 on:
@@ -29,7 +31,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v4
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -47,6 +49,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

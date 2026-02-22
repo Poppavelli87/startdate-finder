@@ -95,6 +95,11 @@ GitHub settings:
 4. Push to `main` and wait for workflow `Deploy Frontend to GitHub Pages` to finish.
 5. Open `https://poppavelli87.github.io/startdate-finder/`.
 
+If the `deploy` job fails almost immediately (for example in ~1 second), re-check:
+
+- `Settings` -> `Pages` -> `Source` is set to `GitHub Actions`.
+- `Settings` -> `Actions` -> `General` -> `Workflow permissions` allows read and write.
+
 ## CORS Notes
 
 Current backend default allows all origins (`*`) for initial deployment.
