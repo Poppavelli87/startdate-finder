@@ -12,6 +12,9 @@ frontend/node_modules/
 frontend/dist/
 playwright-report/
 frontend/test-results/
+frontend/*.tsbuildinfo
+frontend/*.d.ts
+frontend/*.js
 
 # OS/editor
 .DS_Store
