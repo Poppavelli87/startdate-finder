@@ -166,7 +166,7 @@ function App() {
         </p>
       </section>
 
-      <section className="panel">
+      <section className={`panel settings-panel${busy ? " processing" : ""}`}>
         <h2>1) Upload + Settings</h2>
         <form onSubmit={handleSubmit} className="form-grid">
           <label>
@@ -275,6 +275,9 @@ function App() {
             </button>
           </div>
         </form>
+        <div className="processing-overlay" aria-hidden={!busy}>
+          <span>Processing...</span>
+        </div>
       </section>
 
       <section className="panel">
@@ -366,4 +369,3 @@ function App() {
 }
 
 export default App;
-

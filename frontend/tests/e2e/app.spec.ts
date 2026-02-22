@@ -5,6 +5,26 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import * as XLSX from "xlsx";
 
+test("settings controls remain interactive", async ({ page }) => {
+  await page.goto("/startdate-finder/");
+
+  const thresholdSlider = page.locator('input[type="range"]');
+  await expect(thresholdSlider).toBeVisible();
+  const initialSliderValue = await thresholdSlider.inputValue();
+  await thresholdSlider.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(async () => thresholdSlider.inputValue()).not.toBe(initialSliderValue);
+  const updatedSliderValue = Number(await thresholdSlider.inputValue()).toFixed(2);
+  await expect(page.getByText(`High confidence threshold: ${updatedSliderValue}`)).toBeVisible();
+
+  const earliestKnownDateCheckbox = page.getByLabel("Prefer earliest known date");
+  await expect(earliestKnownDateCheckbox).not.toBeChecked();
+  await earliestKnownDateCheckbox.check();
+  await expect(earliestKnownDateCheckbox).toBeChecked();
+  await earliestKnownDateCheckbox.uncheck();
+  await expect(earliestKnownDateCheckbox).not.toBeChecked();
+});
+
 test("uploads, processes, and downloads enriched spreadsheet", async ({ page }) => {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const fixturePath = path.resolve(

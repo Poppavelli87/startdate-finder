@@ -36,6 +36,32 @@ body {
   box-shadow: 0 2px 8px rgba(31, 43, 58, 0.05);
 }
 
+.settings-panel {
+  position: relative;
+}
+
+.processing-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: rgba(243, 247, 249, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 120ms ease-in-out;
+}
+
+.settings-panel.processing .processing-overlay {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
 h1,
 h2 {
   margin: 0 0 0.75rem;
@@ -173,4 +199,3 @@ button[type="button"] {
     align-items: stretch;
   }
 }
-
