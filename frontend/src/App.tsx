@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   apiUrl,
   clearCache,
@@ -53,6 +53,21 @@ function normalizeDateInput(raw: string): string {
   return defaultSettings.min_plausible_date;
 }
 
+function normalizeDenylist(raw: string): string[] {
+  return raw
+    .split("\n")
+    .map((line) => line.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function buildSettingsFromState(settings: JobSettings, denylistText: string): JobSettings {
+  return {
+    ...settings,
+    min_plausible_date: normalizeDateInput(settings.min_plausible_date),
+    denylist_domains: normalizeDenylist(denylistText)
+  };
+}
+
 function App() {
   const [config, setConfig] = useState<AppConfigResponse | null>(null);
   const [settings, setSettings] = useState<JobSettings>(defaultSettings);
@@ -87,16 +102,9 @@ function App() {
     };
   }, []);
 
-  const normalizedSettings = useMemo<JobSettings>(() => {
-    return {
-      ...settings,
-      min_plausible_date: normalizeDateInput(settings.min_plausible_date),
-      denylist_domains: denylistText
-        .split("\n")
-        .map((line) => line.trim().toLowerCase())
-        .filter(Boolean)
-    };
-  }, [settings, denylistText]);
+  function updateSetting<K extends keyof JobSettings>(key: K, value: JobSettings[K]): void {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -110,6 +118,7 @@ function App() {
     setBusy(true);
 
     try {
+      const normalizedSettings = buildSettingsFromState(settings, denylistText);
       const createdJobId = await createJob(file, normalizedSettings);
       setJobId(createdJobId);
       const initialStatus = await fetchStatus(createdJobId);
@@ -212,11 +221,7 @@ function App() {
               max={1}
               step={0.01}
               value={settings.high_confidence_threshold}
-              onChange={(event) =>
-                setSettings((prev) =>
-                  ({ ...prev, high_confidence_threshold: Number(event.target.value) })
-                )
-              }
+              onChange={(event) => updateSetting("high_confidence_threshold", Number(event.target.value))}
             />
           </label>
 
@@ -224,11 +229,7 @@ function App() {
             <input
               type="checkbox"
               checked={settings.prefer_earliest_known_date}
-              onChange={(event) =>
-                setSettings((prev) =>
-                  ({ ...prev, prefer_earliest_known_date: event.target.checked })
-                )
-              }
+              onChange={(event) => updateSetting("prefer_earliest_known_date", event.target.checked)}
             />
             Prefer earliest known date
           </label>
@@ -237,9 +238,7 @@ function App() {
             <input
               type="checkbox"
               checked={settings.enable_rdap_lookup}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, enable_rdap_lookup: event.target.checked }))
-              }
+              onChange={(event) => updateSetting("enable_rdap_lookup", event.target.checked)}
             />
             Enable RDAP lookup
           </label>
@@ -249,11 +248,7 @@ function App() {
               type="checkbox"
               checked={settings.enable_whois_fallback}
               disabled={!config?.whois_key_present}
-              onChange={(event) =>
-                setSettings((prev) =>
-                  ({ ...prev, enable_whois_fallback: event.target.checked })
-                )
-              }
+              onChange={(event) => updateSetting("enable_whois_fallback", event.target.checked)}
             />
             Enable WhoisXML fallback ({config?.whois_key_present ? "key detected" : "no key"})
           </label>
@@ -263,11 +258,7 @@ function App() {
               type="checkbox"
               checked={settings.enable_social_hints}
               disabled={!config?.feature_social_hints_env}
-              onChange={(event) =>
-                setSettings((prev) =>
-                  ({ ...prev, enable_social_hints: event.target.checked })
-                )
-              }
+              onChange={(event) => updateSetting("enable_social_hints", event.target.checked)}
             />
             Enable social hints (best effort)
           </label>
@@ -276,10 +267,8 @@ function App() {
             Minimum plausible date
             <input
               type="date"
-              value={normalizeDateInput(settings.min_plausible_date)}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, min_plausible_date: normalizeDateInput(event.target.value) }))
-              }
+              value={settings.min_plausible_date}
+              onChange={(event) => updateSetting("min_plausible_date", normalizeDateInput(event.target.value))}
             />
           </label>
 
