@@ -1,0 +1,13 @@
+{
+  "ldhName": "example.com",
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "1995-08-13T04:00:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2030-08-13T04:00:00Z"
+    }
+  ]
+}
