@@ -63,10 +63,19 @@ test("start uses current settings values", async ({ page }) => {
   let capturedSettings: Record<string, unknown> | null = null;
   await page.route("**/api/jobs", async (route) => {
     const request = route.request();
-    const formData = await request.formData();
-    capturedSettings = JSON.parse(
-      String(formData.get("settings_json") ?? "{}"),
+    if (request.method() !== "POST") {
+      await route.fallback();
+      return;
+    }
+
+    const postData = request.postData() ?? "";
+    const settingsJsonMatch = postData.match(
+      /name="settings_json"\r?\n\r?\n([\s\S]*?)\r?\n--/,
     );
+    expect(settingsJsonMatch).toBeTruthy();
+    const settingsJsonValue = settingsJsonMatch?.[1] ?? "{}";
+    capturedSettings = JSON.parse(settingsJsonValue) as Record<string, unknown>;
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",

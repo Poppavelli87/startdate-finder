@@ -24,10 +24,14 @@ export async function fetchConfig(): Promise<AppConfigResponse> {
   return parseJson<AppConfigResponse>(response);
 }
 
+export function serializeSettings(settings: JobSettings): string {
+  return JSON.stringify(settings);
+}
+
 export async function createJob(file: File, settings: JobSettings): Promise<string> {
   const form = new FormData();
   form.append("file", file);
-  form.append("settings_json", JSON.stringify(settings));
+  form.append("settings_json", serializeSettings(settings));
   const response = await fetch(apiUrl("/api/jobs"), {
     method: "POST",
     body: form

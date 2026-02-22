@@ -63,6 +63,20 @@ function App() {
     setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
+  function normalizeDenylist(rawText: string): string[] {
+    return rawText
+      .split("\n")
+      .map((line) => line.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  function buildSettingsFromState(currentSettings: JobSettings, currentDenylistText: string): JobSettings {
+    return {
+      ...currentSettings,
+      denylist_domains: normalizeDenylist(currentDenylistText)
+    };
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!file || !settings) {
@@ -70,13 +84,7 @@ function App() {
       return;
     }
 
-    const normalizedSettings: JobSettings = {
-      ...settings,
-      denylist_domains: denylistText
-        .split("\n")
-        .map((line) => line.trim().toLowerCase())
-        .filter(Boolean)
-    };
+    const normalizedSettings = buildSettingsFromState(settings, denylistText);
     setError("");
     setReviewRows([]);
     setReviewSelection({});
