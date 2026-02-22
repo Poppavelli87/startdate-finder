@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: startdate-finder-api
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: CORS_ALLOW_ORIGINS
+        value: "*"
+      - key: FEATURE_SOCIAL_HINTS
+        value: "0"
+      - key: MIN_PLAUSIBLE_DATE
+        value: "1900-01-01"
+      - key: SODA_APP_TOKEN
+        sync: false
+      - key: WHOISXML_API_KEY
+        sync: false

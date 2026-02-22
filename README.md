@@ -1,134 +1,104 @@
 # StartDate Finder
 
-StartDate Finder enriches uploaded business spreadsheets with a best-evidence business start date using this priority chain:
+StartDate Finder enriches uploaded business spreadsheets with a best-evidence business start date using:
 
-1. Connecticut Business Registry (Socrata dataset `n7gp-d28j`)
-2. Domain creation date from RDAP
-3. WhoisXML API fallback (optional)
-4. Public social profile hint date (optional, best effort, off by default)
+1. Connecticut Business Registry (Socrata `n7gp-d28j`)
+2. Domain creation date (RDAP)
+3. WhoisXML fallback (optional)
+4. Social profile hint date (optional, best effort)
 
-The app includes caching, confidence scoring, ambiguity review UI, audit columns, SSE progress updates, Docker packaging, backend tests, frontend e2e tests, and CI.
+## Production Targets
+
+- Frontend: `https://YOUR_USERNAME.github.io/startdate-finder`
+- Backend: `https://startdate-finder-api.onrender.com`
 
 ## Repository Layout
 
 ```text
-/backend      FastAPI API + enrichment engine + SQLite cache/state + pytest
-/frontend     React + Vite + TypeScript UI + Playwright e2e
-/scripts      Utility scripts (fixture generation)
-/docs         Deployment/architecture docs
+/backend
+/frontend
+/scripts
+/docs
+/render.yaml
 /docker-compose.yml
-/Dockerfile
 ```
 
-## Environment Variables
+## Backend Environment Variables
 
-- `SODA_APP_TOKEN` (optional, recommended) - Socrata app token.
-- `WHOISXML_API_KEY` (optional) - enables WhoisXML fallback.
-- `FEATURE_SOCIAL_HINTS` (optional, default `0`) - enables social hint toggle in UI.
-- `CORS_ALLOW_ORIGINS` (optional, default `*`) - comma-separated origins.
-- `MIN_PLAUSIBLE_DATE` (optional, default `1900-01-01`) - global lower date bound.
-- `STARTDATE_TEST_MODE` (optional, default `0`) - deterministic fake provider responses for tests.
+- `SODA_APP_TOKEN` (optional, recommended)
+- `WHOISXML_API_KEY` (optional)
+- `FEATURE_SOCIAL_HINTS` (`0` or `1`, default `0`)
+- `CORS_ALLOW_ORIGINS` (default `*`)
+- `MIN_PLAUSIBLE_DATE` (default `1900-01-01`)
+- `PORT` (default `8000` locally; Render injects this automatically)
+
+The backend logs warnings when key env vars are missing and uses safe defaults.
 
 ## Local Development
 
-From repo root (`startdate-finder`):
-
-1. Backend setup:
+### Backend
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
+cd backend
+python -m app.main
 ```
 
-2. Frontend setup:
+### Frontend
 
 ```powershell
 cd frontend
 npm install
-cd ..
-```
-
-3. Create the fixture spreadsheet used by tests:
-
-```powershell
-python scripts/create_fixture_xlsx.py
-```
-
-4. Run backend:
-
-```powershell
-cd backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-5. Run frontend (new terminal):
-
-```powershell
-cd frontend
 npm run dev
 ```
 
-Open `http://localhost:5173`.
-
-## Docker
+## Tests
 
 ```powershell
-docker compose up --build
-```
-
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:8000`
-
-## Testing
-
-1. Backend unit tests:
-
-```powershell
+# backend
 cd backend
 pytest -q
-```
 
-2. Playwright e2e:
-
-```powershell
-cd frontend
+# frontend e2e
+cd ..\frontend
 npx playwright install chromium
 npm run test:e2e
 ```
 
-The Playwright config starts backend + frontend automatically and uses `STARTDATE_TEST_MODE=1`.
+## Render Deploy (Backend)
 
-## API Endpoints
+Use `render.yaml` or Render UI:
 
-- `POST /api/jobs` (multipart: `file`, `settings_json`)
-- `GET /api/jobs/{job_id}/status`
-- `GET /api/jobs/{job_id}/events` (SSE)
-- `GET /api/jobs/{job_id}/review`
-- `POST /api/jobs/{job_id}/review`
-- `GET /api/jobs/{job_id}/download`
-- `POST /api/cache/clear`
+- Root directory: `backend`
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT`
 
-## Spreadsheet Output
+## GitHub Pages Deploy (Frontend)
 
-The app fills existing `Date Established` and appends these audit columns:
+```powershell
+cd frontend
+npm install
+npm run deploy
+```
 
-- `chosen_start_date`
-- `chosen_source`
-- `confidence`
-- `ct_matched_name`
-- `ct_entity_id`
-- `ct_registration_date_raw`
-- `ct_query_notes`
-- `domain`
-- `domain_created_date`
-- `domain_lookup_notes`
-- `social_profile_url`
-- `social_created_hint_date`
-- `social_lookup_notes`
+Set these before deploy:
 
-## Deploy
+- `frontend/.env.production`:
+  - `VITE_API_BASE_URL=https://startdate-finder-api.onrender.com`
+- `frontend/package.json`:
+  - `homepage=https://YOUR_USERNAME.github.io/startdate-finder`
 
-See `docs/deployment.md` for exact GitHub Pages + Render/Fly deployment steps.
+## CORS Notes
 
+Current backend default allows all origins (`*`) for initial deployment.
+
+For tighter security later, set:
+
+```text
+CORS_ALLOW_ORIGINS=https://YOUR_USERNAME.github.io
+```
+
+Then redeploy backend.

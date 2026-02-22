@@ -13,7 +13,7 @@ test("uploads, processes, and downloads enriched spreadsheet", async ({ page }) 
   );
   expect(fs.existsSync(fixturePath)).toBeTruthy();
 
-  await page.goto("/");
+  await page.goto("/startdate-finder/");
   await page.setInputFiles('input[type="file"]', fixturePath);
   await page.getByRole("button", { name: "Start Processing" }).click();
 

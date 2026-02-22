@@ -1,5 +1,6 @@
 fastapi==0.115.8
 uvicorn[standard]==0.34.0
+gunicorn==23.0.0
 httpx==0.28.1
 pydantic==2.10.6
 python-multipart==0.0.20
@@ -7,5 +8,3 @@ openpyxl==3.1.5
 rapidfuzz==3.11.0
 publicsuffix2==2.20191221
 python-dateutil==2.9.0.post0
-pytest==8.3.5
-pytest-asyncio==0.25.3
