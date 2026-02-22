@@ -5,10 +5,10 @@ import type {
   ReviewResponse
 } from "./types";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export function apiUrl(path: string): string {
-  return `${API_BASE}${path}`;
+  return `${API_BASE_URL}${path}`;
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -64,4 +64,3 @@ export async function clearCache(): Promise<void> {
   const response = await fetch(apiUrl("/api/cache/clear"), { method: "POST" });
   await parseJson<{ cleared: boolean }>(response);
 }
-

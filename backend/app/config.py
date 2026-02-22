@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 from datetime import date
 from typing import Any
+
+logger = logging.getLogger("startdate_finder.config")
 
 DEFAULT_DOMAIN_DENYLIST = [
     "yelp.com",
@@ -39,7 +42,18 @@ def bool_env(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _warn_if_missing(name: str, default_value: str) -> None:
+    if os.getenv(name) is None:
+        logger.warning("%s is not set; using default value '%s'.", name, default_value)
+
+
 def get_env_config() -> dict[str, Any]:
+    _warn_if_missing("SODA_APP_TOKEN", "")
+    _warn_if_missing("WHOISXML_API_KEY", "")
+    _warn_if_missing("FEATURE_SOCIAL_HINTS", "0")
+    _warn_if_missing("CORS_ALLOW_ORIGINS", "*")
+    _warn_if_missing("PORT", "8000")
+
     return {
         "soda_app_token": os.getenv("SODA_APP_TOKEN", "").strip(),
         "whoisxml_api_key": os.getenv("WHOISXML_API_KEY", "").strip(),
@@ -51,10 +65,19 @@ def get_env_config() -> dict[str, Any]:
     }
 
 
+def get_runtime_port(default: int = 8000) -> int:
+    raw = os.getenv("PORT", str(default)).strip()
+    try:
+        value = int(raw)
+        return value if value > 0 else default
+    except ValueError:
+        logger.warning("Invalid PORT value '%s'; falling back to %s.", raw, default)
+        return default
+
+
 def parse_min_plausible_date(raw: str) -> date:
     try:
         year, month, day = [int(v) for v in raw.split("-")]
         return date(year, month, day)
     except Exception:
         return date(1900, 1, 1)
-

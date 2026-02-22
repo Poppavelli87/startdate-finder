@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import logging
 from contextlib import asynccontextmanager
 from io import BytesIO
 from typing import Any
 
+import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from app.config import DEFAULT_DOMAIN_DENYLIST, get_env_config
+from app.config import DEFAULT_DOMAIN_DENYLIST, get_env_config, get_runtime_port
 from app.database import Database
 from app.job_manager import JobManager
 from app.schemas import (
@@ -26,10 +28,15 @@ from app.services.domain_lookup import DomainLookupService
 from app.services.http_client import RetryHttpClient
 from app.services.social_hint import SocialHintService
 
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger("startdate_finder.main")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    env = get_env_config()
+    env = app.state.env
     db = Database(env["db_path"])
     http_client = RetryHttpClient()
     manager = JobManager(
@@ -60,8 +67,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="StartDate Finder API", version="1.0.0", lifespan=lifespan)
 
-env = get_env_config()
-cors_setting = env["cors_allow_origins"].strip()
+app_env = get_env_config()
+app.state.env = app_env
+
+# Initial production posture for easier first deploy:
+# keep wildcard CORS enabled, then tighten to your specific frontend origin.
+# Recommended origin to lock down later:
+# https://YOUR_USERNAME.github.io
+cors_setting = app_env["cors_allow_origins"].strip()
 if cors_setting == "*" or not cors_setting:
     allow_origins = ["*"]
 else:
@@ -70,7 +83,7 @@ else:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -206,3 +219,8 @@ async def clear_cache() -> CacheClearResponse:
     await app.state.manager.clear_cache()
     return CacheClearResponse(cleared=True)
 
+
+if __name__ == "__main__":
+    port = get_runtime_port(default=8000)
+    logger.info("Starting StartDate Finder API on 0.0.0.0:%s", port)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
