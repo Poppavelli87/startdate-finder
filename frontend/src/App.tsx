@@ -28,9 +28,49 @@ const defaultStatus: JobStatusResponse = {
   can_download: false
 };
 
+const defaultSettings: JobSettings = {
+  high_confidence_threshold: 0.85,
+  prefer_earliest_known_date: false,
+  enable_rdap_lookup: true,
+  enable_whois_fallback: false,
+  enable_social_hints: false,
+  min_plausible_date: "1900-01-01",
+  denylist_domains: []
+};
+
+function normalizeDateInput(raw: string): string {
+  const value = String(raw || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  const slashDate = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashDate) {
+    const month = slashDate[1].padStart(2, "0");
+    const day = slashDate[2].padStart(2, "0");
+    const year = slashDate[3];
+    return `${year}-${month}-${day}`;
+  }
+  return defaultSettings.min_plausible_date;
+}
+
+function normalizeDenylist(raw: string): string[] {
+  return raw
+    .split("\n")
+    .map((line) => line.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function buildSettingsFromState(settings: JobSettings, denylistText: string): JobSettings {
+  return {
+    ...settings,
+    min_plausible_date: normalizeDateInput(settings.min_plausible_date),
+    denylist_domains: normalizeDenylist(denylistText)
+  };
+}
+
 function App() {
   const [config, setConfig] = useState<AppConfigResponse | null>(null);
-  const [settings, setSettings] = useState<JobSettings | null>(null);
+  const [settings, setSettings] = useState<JobSettings>(defaultSettings);
   const [denylistText, setDenylistText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string>("");
@@ -46,7 +86,10 @@ function App() {
       try {
         const loaded = await fetchConfig();
         setConfig(loaded);
-        setSettings(loaded.defaults);
+        setSettings({
+          ...loaded.defaults,
+          min_plausible_date: normalizeDateInput(loaded.defaults.min_plausible_date)
+        });
         setDenylistText(loaded.defaults.denylist_domains.join("\n"));
       } catch (err) {
         setError(String(err));
@@ -59,27 +102,13 @@ function App() {
     };
   }, []);
 
-  function updateSetting<K extends keyof JobSettings>(key: K, value: JobSettings[K]) {
-    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
-  }
-
-  function normalizeDenylist(rawText: string): string[] {
-    return rawText
-      .split("\n")
-      .map((line) => line.trim().toLowerCase())
-      .filter(Boolean);
-  }
-
-  function buildSettingsFromState(currentSettings: JobSettings, currentDenylistText: string): JobSettings {
-    return {
-      ...currentSettings,
-      denylist_domains: normalizeDenylist(currentDenylistText)
-    };
+  function updateSetting<K extends keyof JobSettings>(key: K, value: JobSettings[K]): void {
+    setSettings((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!file || !settings) {
+    if (!file) {
       setError("Choose an .xlsx file and settings first.");
       return;
     }
@@ -91,6 +120,7 @@ function App() {
     setBusy(true);
 
     try {
+      const normalizedSettings = buildSettingsFromState(settings, denylistText);
       const createdJobId = await createJob(file, normalizedSettings);
       setJobId(createdJobId);
       const initialStatus = await fetchStatus(createdJobId);
@@ -186,13 +216,13 @@ function App() {
           </label>
 
           <label>
-            High confidence threshold: {settings?.high_confidence_threshold.toFixed(2)}
+            High confidence threshold: {settings.high_confidence_threshold.toFixed(2)}
             <input
               type="range"
               min={0.5}
               max={1}
               step={0.01}
-              value={settings?.high_confidence_threshold ?? 0.85}
+              value={settings.high_confidence_threshold}
               onChange={(event) => updateSetting("high_confidence_threshold", Number(event.target.value))}
             />
           </label>
@@ -200,7 +230,7 @@ function App() {
           <label className="checkbox">
             <input
               type="checkbox"
-              checked={settings?.prefer_earliest_known_date ?? false}
+              checked={settings.prefer_earliest_known_date}
               onChange={(event) => updateSetting("prefer_earliest_known_date", event.target.checked)}
             />
             Prefer earliest known date
@@ -209,7 +239,7 @@ function App() {
           <label className="checkbox">
             <input
               type="checkbox"
-              checked={settings?.enable_rdap_lookup ?? true}
+              checked={settings.enable_rdap_lookup}
               onChange={(event) => updateSetting("enable_rdap_lookup", event.target.checked)}
             />
             Enable RDAP lookup
@@ -218,7 +248,7 @@ function App() {
           <label className="checkbox">
             <input
               type="checkbox"
-              checked={settings?.enable_whois_fallback ?? false}
+              checked={settings.enable_whois_fallback}
               disabled={!config?.whois_key_present}
               onChange={(event) => updateSetting("enable_whois_fallback", event.target.checked)}
             />
@@ -228,7 +258,7 @@ function App() {
           <label className="checkbox">
             <input
               type="checkbox"
-              checked={settings?.enable_social_hints ?? false}
+              checked={settings.enable_social_hints}
               disabled={!config?.feature_social_hints_env}
               onChange={(event) => updateSetting("enable_social_hints", event.target.checked)}
             />
@@ -239,8 +269,8 @@ function App() {
             Minimum plausible date
             <input
               type="date"
-              value={settings?.min_plausible_date ?? "1900-01-01"}
-              onChange={(event) => updateSetting("min_plausible_date", event.target.value)}
+              value={settings.min_plausible_date}
+              onChange={(event) => updateSetting("min_plausible_date", normalizeDateInput(event.target.value))}
             />
           </label>
 

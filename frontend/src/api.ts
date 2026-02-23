@@ -29,12 +29,12 @@ export function serializeSettings(settings: JobSettings): string {
 }
 
 export async function createJob(file: File, settings: JobSettings): Promise<string> {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("settings_json", serializeSettings(settings));
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("settings_json", JSON.stringify(settings));
   const response = await fetch(apiUrl("/api/jobs"), {
     method: "POST",
-    body: form
+    body: formData
   });
   const payload = await parseJson<{ job_id: string }>(response);
   return payload.job_id;

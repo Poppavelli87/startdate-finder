@@ -5,23 +5,30 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import * as XLSX from "xlsx";
 
+function fixturePath(): string {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(currentDir, "../../../backend/tests/fixtures/businesses_fixture.xlsx");
+}
+
+function extractSettingsJsonFromMultipart(body: string): Record<string, unknown> {
+  const match = body.match(/name="settings_json"\r?\n\r?\n([\s\S]*?)\r?\n--/);
+  if (!match) {
+    throw new Error("settings_json field not found in multipart form body");
+  }
+  return JSON.parse(match[1].trim()) as Record<string, unknown>;
+}
+
 test("settings controls remain interactive", async ({ page }) => {
   await page.goto("/startdate-finder/");
 
   const thresholdSlider = page.locator('input[type="range"]');
   await expect(thresholdSlider).toBeVisible();
   const initialSliderValue = await thresholdSlider.inputValue();
-  await thresholdSlider.focus();
-  await page.keyboard.press("ArrowRight");
-  await expect
-    .poll(async () => thresholdSlider.inputValue())
-    .not.toBe(initialSliderValue);
-  const updatedSliderValue = Number(await thresholdSlider.inputValue()).toFixed(
-    2,
-  );
-  await expect(
-    page.getByText(`High confidence threshold: ${updatedSliderValue}`),
-  ).toBeVisible();
+  await thresholdSlider.click();
+  await thresholdSlider.press("ArrowRight");
+  await expect.poll(async () => thresholdSlider.inputValue()).not.toBe(initialSliderValue);
+  const updatedSliderValue = Number(await thresholdSlider.inputValue()).toFixed(2);
+  await expect(page.getByText(`High confidence threshold: ${updatedSliderValue}`)).toBeVisible();
 
   const earliestKnownDateCheckbox = page.getByLabel(
     "Prefer earliest known date",
@@ -33,123 +40,66 @@ test("settings controls remain interactive", async ({ page }) => {
   await expect(earliestKnownDateCheckbox).not.toBeChecked();
 });
 
-test("start uses current settings values", async ({ page }) => {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const fixturePath = path.resolve(
-    currentDir,
-    "../../../backend/tests/fixtures/businesses_fixture.xlsx",
-  );
+test("submits normalized settings_json payload from current UI state", async ({ page }) => {
+  const xlsxFixture = fixturePath();
+  expect(fs.existsSync(xlsxFixture)).toBeTruthy();
 
-  await page.route("**/api/config", async (route) => {
+  let submittedSettings: Record<string, unknown> | null = null;
+
+  await page.route("**/api/jobs", async (route, request) => {
+    const multipartBody = request.postDataBuffer()?.toString("utf8") || "";
+    submittedSettings = extractSettingsJsonFromMultipart(multipartBody);
     await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        defaults: {
-          high_confidence_threshold: 0.85,
-          prefer_earliest_known_date: false,
-          enable_rdap_lookup: true,
-          enable_whois_fallback: false,
-          enable_social_hints: false,
-          min_plausible_date: "1900-01-01",
-          denylist_domains: ["example.com"],
-        },
-        whois_key_present: true,
-        feature_social_hints_env: true,
-      }),
-    });
-  });
-
-  let capturedSettings: Record<string, unknown> | null = null;
-  await page.route("**/api/jobs", async (route) => {
-    const request = route.request();
-    if (request.method() !== "POST") {
-      await route.fallback();
-      return;
-    }
-
-    const postData = request.postData() ?? "";
-    const settingsJsonMatch = postData.match(
-      /name="settings_json"\r?\n\r?\n([\s\S]*?)\r?\n--/,
-    );
-    expect(settingsJsonMatch).toBeTruthy();
-    const settingsJsonValue = settingsJsonMatch?.[1] ?? "{}";
-    capturedSettings = JSON.parse(settingsJsonValue) as Record<string, unknown>;
-
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ job_id: "job-123" }),
-    });
-  });
-
-  await page.route("**/api/jobs/job-123/status", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        job_id: "job-123",
-        status: "running",
-        progress_done: 0,
-        progress_total: 1,
-        progress_pct: 0,
-        message: "running",
-        counts: {
-          total_rows: 0,
-          auto_matched: 0,
-          needs_review: 0,
-          not_found: 0,
-          filled_via_domain: 0,
-          filled_via_social: 0,
-        },
-        can_download: false,
-      }),
-    });
-  });
-
-  await page.route("**/api/jobs/job-123/events", async (route) => {
-    await route.fulfill({
-      status: 200,
-      headers: {
-        "Content-Type": "text/event-stream",
-      },
-      body: "",
+      status: 400,
+      contentType: "text/plain",
+      body: "intentional test response"
     });
   });
 
   await page.goto("/startdate-finder/");
+
+  const startButton = page.getByRole("button", { name: "Start Processing" });
+  await expect(startButton).toBeDisabled();
+
+  await page.setInputFiles('input[type="file"]', xlsxFixture);
+  await expect(startButton).toBeEnabled();
 
   const thresholdSlider = page.locator('input[type="range"]');
-  await thresholdSlider.fill("0.91");
+  const initialSliderValue = await thresholdSlider.inputValue();
+  await thresholdSlider.click();
+  await thresholdSlider.press("ArrowRight");
+  await expect.poll(async () => thresholdSlider.inputValue()).not.toBe(initialSliderValue);
+  const updatedSliderValue = Number(await thresholdSlider.inputValue()).toFixed(2);
+  await expect(page.getByText(`High confidence threshold: ${updatedSliderValue}`)).toBeVisible();
+
+  const rdapCheckbox = page.getByLabel("Enable RDAP lookup");
+  await expect(rdapCheckbox).toBeChecked();
+  await rdapCheckbox.uncheck();
+  await expect(rdapCheckbox).not.toBeChecked();
+
   await page.getByLabel("Prefer earliest known date").check();
-  await page.getByLabel("Minimum plausible date").fill("1950-12-31");
-  await page
-    .getByLabel("Domain denylist (one domain per line)")
-    .fill("foo.com\n BAR.org \n");
+  await page.getByLabel("Minimum plausible date").fill("2024-05-06");
+  await page.getByLabel("Domain denylist (one domain per line)").fill("foo.com\n BAR.org \n");
 
-  await page.setInputFiles('input[type="file"]', fixturePath);
-  await page.getByRole("button", { name: "Start Processing" }).click();
+  await startButton.click();
 
-  await expect.poll(() => capturedSettings).not.toBeNull();
-  expect(capturedSettings).toMatchObject({
-    high_confidence_threshold: 0.91,
-    prefer_earliest_known_date: true,
-    min_plausible_date: "1950-12-31",
-    denylist_domains: ["foo.com", "bar.org"],
-  });
+  await expect.poll(() => submittedSettings).not.toBeNull();
+  expect(submittedSettings).not.toBeNull();
+
+  const settings = submittedSettings as Record<string, unknown>;
+  expect(settings.high_confidence_threshold).toBeCloseTo(Number(updatedSliderValue), 5);
+  expect(settings.prefer_earliest_known_date).toBe(true);
+  expect(settings.enable_rdap_lookup).toBe(false);
+  expect(settings.min_plausible_date).toBe("2024-05-06");
+  expect(settings.denylist_domains).toEqual(["foo.com", "bar.org"]);
 });
-test("uploads, processes, and downloads enriched spreadsheet", async ({
-  page,
-}) => {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const fixturePath = path.resolve(
-    currentDir,
-    "../../../backend/tests/fixtures/businesses_fixture.xlsx",
-  );
-  expect(fs.existsSync(fixturePath)).toBeTruthy();
+
+test("uploads, processes, and downloads enriched spreadsheet", async ({ page }) => {
+  const xlsxFixture = fixturePath();
+  expect(fs.existsSync(xlsxFixture)).toBeTruthy();
 
   await page.goto("/startdate-finder/");
-  await page.setInputFiles('input[type="file"]', fixturePath);
+  await page.setInputFiles('input[type="file"]', xlsxFixture);
   await page.getByRole("button", { name: "Start Processing" }).click();
 
   await expect(
