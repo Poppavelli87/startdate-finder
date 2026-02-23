@@ -24,6 +24,10 @@ export async function fetchConfig(): Promise<AppConfigResponse> {
   return parseJson<AppConfigResponse>(response);
 }
 
+export function serializeSettings(settings: JobSettings): string {
+  return JSON.stringify(settings);
+}
+
 export async function createJob(file: File, settings: JobSettings): Promise<string> {
   const formData = new FormData();
   formData.set("file", file);

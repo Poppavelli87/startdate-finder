@@ -30,7 +30,9 @@ test("settings controls remain interactive", async ({ page }) => {
   const updatedSliderValue = Number(await thresholdSlider.inputValue()).toFixed(2);
   await expect(page.getByText(`High confidence threshold: ${updatedSliderValue}`)).toBeVisible();
 
-  const earliestKnownDateCheckbox = page.getByLabel("Prefer earliest known date");
+  const earliestKnownDateCheckbox = page.getByLabel(
+    "Prefer earliest known date",
+  );
   await expect(earliestKnownDateCheckbox).not.toBeChecked();
   await earliestKnownDateCheckbox.check();
   await expect(earliestKnownDateCheckbox).toBeChecked();
@@ -100,21 +102,32 @@ test("uploads, processes, and downloads enriched spreadsheet", async ({ page }) 
   await page.setInputFiles('input[type="file"]', xlsxFixture);
   await page.getByRole("button", { name: "Start Processing" }).click();
 
-  await expect(page.getByRole("link", { name: "Download Enriched Excel" })).toBeVisible({
-    timeout: 90000
+  await expect(
+    page.getByRole("link", { name: "Download Enriched Excel" }),
+  ).toBeVisible({
+    timeout: 90000,
   });
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download Enriched Excel" }).click();
   const download = await downloadPromise;
-  const outputPath = path.join(test.info().outputDir, download.suggestedFilename());
+  const outputPath = path.join(
+    test.info().outputDir,
+    download.suggestedFilename(),
+  );
   await download.saveAs(outputPath);
   expect(fs.existsSync(outputPath)).toBeTruthy();
 
   const workbook = XLSX.read(fs.readFileSync(outputPath), { type: "buffer" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: "" });
-  const knownRow = rows.find((row) => String(row["Business"]).toLowerCase().includes("acme"));
+  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
+    defval: "",
+  });
+  const knownRow = rows.find((row) =>
+    String(row["Business"]).toLowerCase().includes("acme"),
+  );
   expect(knownRow).toBeTruthy();
-  expect(String(knownRow?.["Date Established"] ?? "").trim().length).toBeGreaterThan(0);
+  expect(
+    String(knownRow?.["Date Established"] ?? "").trim().length,
+  ).toBeGreaterThan(0);
 });

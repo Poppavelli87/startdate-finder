@@ -112,6 +112,8 @@ function App() {
       setError("Choose an .xlsx file and settings first.");
       return;
     }
+
+    const normalizedSettings = buildSettingsFromState(settings, denylistText);
     setError("");
     setReviewRows([]);
     setReviewSelection({});
@@ -290,9 +292,11 @@ function App() {
             </button>
           </div>
         </form>
-        <div className="processing-overlay" aria-hidden={!busy}>
-          <span>Processing...</span>
-        </div>
+        {busy ? (
+          <div className="processing-overlay" aria-hidden={!busy}>
+            <span>Processing...</span>
+          </div>
+        ) : null}
       </section>
 
       <section className="panel">
